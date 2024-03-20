@@ -1,2 +1,3 @@
 # LockDetector
-Detect if device is locked or not.
+
+Detect whether the device is locked or not.
