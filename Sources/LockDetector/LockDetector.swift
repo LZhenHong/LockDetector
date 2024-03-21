@@ -36,6 +36,7 @@ public class LockDetector {
         return path + "/protected"
     }()
 
+    // https://developer.apple.com/documentation/foundation/fileprotectiontype/1616200-complete
     private static func createProtectedFile(with path: String) {
         FileManager.default.createFile(atPath: path,
                                        contents: "".data(using: .utf8),
