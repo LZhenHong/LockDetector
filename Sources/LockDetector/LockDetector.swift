@@ -10,7 +10,7 @@ import UIKit
 typealias Application = UIApplication
 #endif
 
-public class LockDetector {
+public enum LockDetector {
     public enum ScreenState {
         case unknown, locked, unlocked
     }
