@@ -34,16 +34,10 @@ extension LockDetector {
 
   /// Whether the current process is running in an App Extension.
   public static var isAppExtension: Bool {
-    guard Bundle.main.bundlePath.hasSuffix(".appex") else {
-      return false
-    }
-
-    let cls: AnyClass? = NSClassFromString(String(describing: Application.self))
-    guard let cls, cls.responds(to: #selector(getter: Application.shared)) else {
-      return true
-    }
-
-    return false
+    // App Extensions have bundle paths ending in .appex
+    // This is more reliable than checking UIApplication availability
+    // since Widget Extensions link UIKit but can't use UIApplication.shared
+    Bundle.main.bundlePath.hasSuffix(".appex")
   }
 
   // MARK: - Protected File
@@ -53,7 +47,7 @@ extension LockDetector {
     guard let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first else {
       return ""
     }
-    return path + "/protected"
+    return path + "/.lock_detector"
   }()
 
   private static var protectedFileExists: Bool {
@@ -61,6 +55,8 @@ extension LockDetector {
   }
 
   private static func createProtectedFile() {
+    // Use .complete protection - file is unreadable when device is locked
+    // This is required for accurate lock state detection
     FileManager.default.createFile(
       atPath: protectedFilePath,
       contents: Data(),
