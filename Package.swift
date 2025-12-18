@@ -4,18 +4,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "LockDetector",
-    platforms: [
-        .macOS(.v12),
-        .macCatalyst(.v13),
-        .iOS(.v13),
-        .tvOS(.v13)
-    ],
-    products: [
-        .library(name: "LockDetector", targets: ["LockDetector"]),
-    ],
-    targets: [
-        .target(name: "LockDetector"),
-        .testTarget(name: "LockDetectorTests", dependencies: ["LockDetector"]),
-    ]
+  name: "LockDetector",
+  platforms: [
+    .macOS(.v12),
+    .macCatalyst(.v13),
+    .iOS(.v13),
+  ],
+  products: [
+    .library(name: "LockDetector", targets: ["LockDetector"]),
+  ],
+  targets: [
+    .target(name: "LockDetector"),
+    .testTarget(name: "LockDetectorTests", dependencies: ["LockDetector"]),
+  ]
 )
