@@ -28,4 +28,18 @@ final class LockDetectorTests: XCTestCase {
     XCTAssertEqual(LockDetector.ScreenState.unknown, .unknown)
     XCTAssertNotEqual(LockDetector.ScreenState.locked, .unlocked)
   }
+
+  func testObservationToken() {
+    var callCount = 0
+    let token = LockDetector.observeStateChanges { _ in
+      callCount += 1
+    }
+    XCTAssertNotNil(token)
+
+    // Invalidate should not crash
+    token.invalidate()
+
+    // Double invalidate should be safe
+    token.invalidate()
+  }
 }

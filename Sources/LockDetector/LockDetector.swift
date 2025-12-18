@@ -15,6 +15,60 @@ public enum LockDetector {
     case unknown, locked, unlocked
   }
 
+  /// Token for managing notification observation lifecycle.
+  public final class ObservationToken {
+    private var observers: [NSObjectProtocol] = []
+
+    fileprivate init(observers: [NSObjectProtocol]) {
+      self.observers = observers
+    }
+
+    /// Stops observing lock state changes.
+    public func invalidate() {
+      observers.forEach { NotificationCenter.default.removeObserver($0) }
+      observers.removeAll()
+    }
+
+    deinit {
+      invalidate()
+    }
+  }
+
+  /// Observes lock state changes and calls the handler when state changes.
+  /// - Parameter handler: Called with `.locked` when device locks, `.unlocked` when unlocks.
+  /// - Returns: Token to manage observation. Call `invalidate()` or let it deinit to stop.
+  /// - Note: Not available in App Extensions. Use polling with `currentState` instead.
+  @discardableResult
+  public static func observeStateChanges(_ handler: @escaping (ScreenState) -> Void) -> ObservationToken {
+    let center = NotificationCenter.default
+
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+      let didBecomeAvailable = NSNotification.Name.NSApplicationProtectedDataDidBecomeAvailable
+      let willBecomeUnavailable = NSNotification.Name.NSApplicationProtectedDataWillBecomeUnavailable
+    #else
+      let didBecomeAvailable = UIApplication.protectedDataDidBecomeAvailableNotification
+      let willBecomeUnavailable = UIApplication.protectedDataWillBecomeUnavailableNotification
+    #endif
+
+    let unlockObserver = center.addObserver(
+      forName: didBecomeAvailable,
+      object: nil,
+      queue: .main
+    ) { _ in
+      handler(.unlocked)
+    }
+
+    let lockObserver = center.addObserver(
+      forName: willBecomeUnavailable,
+      object: nil,
+      queue: .main
+    ) { _ in
+      handler(.locked)
+    }
+
+    return ObservationToken(observers: [unlockObserver, lockObserver])
+  }
+
   public static var isAppExtension: Bool {
     // First check bundle path - if not .appex, definitely not an extension
     guard Bundle.main.bundlePath.hasSuffix(".appex") else {
