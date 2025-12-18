@@ -21,20 +21,29 @@ swift test --filter LockDetectorTests.testCurrentState
 
 ## Architecture
 
-The library uses a single-file design (`Sources/LockDetector/LockDetector.swift`) with a public enum `LockDetector` that provides:
+The library uses conditional compilation (`#if canImport`) to provide platform-specific implementations:
 
-- **Platform abstraction**: Uses conditional compilation (`#if canImport`) to handle AppKit (macOS) vs UIKit (iOS/Catalyst) differences through a unified `Application` typealias.
+### macOS Implementation
+- **Current state**: Uses `CGSessionCopyCurrentDictionary()` to read `CGSSessionScreenIsLocked` key
+- **State changes**: Uses `DistributedNotificationCenter` to observe `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` notifications
 
-- **Two detection strategies**:
-  1. **Main app**: Uses `Application.shared.isProtectedDataAvailable` for direct lock state detection
-  2. **App extension**: Uses a file-based approach with `FileProtectionType.complete` - creates a protected file that becomes unreadable when the device is locked
+### iOS/Catalyst Implementation
+- **Main app**: Uses `UIApplication.shared.isProtectedDataAvailable` for direct lock state detection
+- **App extension**: Uses a file-based approach with `FileProtectionType.complete` - creates a protected file that becomes unreadable when the device is locked
+- **State changes**: Uses `NotificationCenter` to observe `protectedDataDidBecomeAvailableNotification` and `protectedDataWillBecomeUnavailableNotification`
 
-- **Public API** (all `@MainActor`):
-  - `LockDetector.currentState` → returns `.locked`, `.unlocked`, or `.unknown`
-  - `LockDetector.initialize()` → creates the protected file (call early in app lifecycle for extension support)
-  - `LockDetector.isAppExtension` → detects if running in an app extension context
+## Public API
+
+### All Platforms
+- `LockDetector.currentState` → returns `.locked`, `.unlocked`, or `.unknown`
+- `LockDetector.observeStateChanges(_:)` → observes lock/unlock events, returns `ObservationToken`
+
+### iOS Only
+- `LockDetector.initialize()` → creates the protected file (call early in app lifecycle for extension support)
+- `LockDetector.isAppExtension` → detects if running in an app extension context
+- `LockDetector.protectedFilePath` → path to the protected file used for extension detection
 
 ## Platform Notes
 
-- **macOS**: `FileProtectionType.complete` relies on FileVault; file-based detection may not work as expected
-- **App Extensions**: Must call `initialize()` before using `currentState` for reliable detection
+- **macOS**: `currentState` is synchronous (no `@MainActor`); uses Core Graphics session dictionary
+- **iOS/Catalyst**: `currentState` requires `@MainActor`; App Extensions must call `initialize()` first
