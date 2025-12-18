@@ -19,15 +19,22 @@ swift test
 swift test --filter LockDetectorTests.testCurrentState
 ```
 
+## File Structure
+
+```
+Sources/LockDetector/
+├── LockDetector.swift        # Public types (ScreenState, ObservationToken) and API
+├── LockDetector+macOS.swift  # macOS implementation (CGSession, DistributedNotificationCenter)
+└── LockDetector+iOS.swift    # iOS/Catalyst implementation (protected data, file protection)
+```
+
 ## Architecture
 
-The library uses conditional compilation (`#if canImport`) to provide platform-specific implementations:
-
-### macOS Implementation
+### macOS Implementation (`LockDetector+macOS.swift`)
 - **Current state**: Uses `CGSessionCopyCurrentDictionary()` to read `CGSSessionScreenIsLocked` key
 - **State changes**: Uses `DistributedNotificationCenter` to observe `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` notifications
 
-### iOS/Catalyst Implementation
+### iOS/Catalyst Implementation (`LockDetector+iOS.swift`)
 - **Main app**: Uses `UIApplication.shared.isProtectedDataAvailable` for direct lock state detection
 - **App extension**: Uses a file-based approach with `FileProtectionType.complete` - creates a protected file that becomes unreadable when the device is locked
 - **State changes**: Uses `NotificationCenter` to observe `protectedDataDidBecomeAvailableNotification` and `protectedDataWillBecomeUnavailableNotification`
@@ -47,3 +54,44 @@ The library uses conditional compilation (`#if canImport`) to provide platform-s
 
 - **macOS**: `currentState` is synchronous (no `@MainActor`); uses Core Graphics session dictionary
 - **iOS/Catalyst**: `currentState` requires `@MainActor`; App Extensions must call `initialize()` first
+
+## Testing
+
+The test suite includes 12 tests across 5 test classes:
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `ScreenStateTests` | 4 | Enum cases, equality, Sendable conformance |
+| `ObservationTokenTests` | 4 | Creation, invalidation, multiple observers, deinit |
+| `CurrentStateTests` | 2 | Valid values, unlocked device detection |
+| `MacOSLockDetectorTests` | 2 | GUI session tests (macOS only) |
+| `IOSLockDetectorTests` | 6 | Extension detection, protected file (iOS only) |
+
+Run specific test classes:
+```bash
+swift test --filter ScreenStateTests
+swift test --filter ObservationTokenTests
+```
+
+## Concurrency
+
+- `ScreenState` conforms to `Sendable` for safe cross-actor usage
+- `ObservationToken` is `@unchecked Sendable` (internal synchronization via notification center)
+- Handler closures are marked `@Sendable`
+- iOS `currentState` requires `@MainActor` due to `UIApplication.shared` access
+
+## Implementation Notes
+
+### Constants
+Magic strings are extracted to private enums for maintainability:
+- `Notifications` enum: macOS notification names
+- `SessionKeys` enum: CGSession dictionary keys
+
+### ObservationToken Design
+Uses closure-based `removeObserver` to avoid conditional compilation in `invalidate()`:
+```swift
+ObservationToken(
+    observers: [...],
+    removeObserver: { center.removeObserver($0) }
+)
+```
