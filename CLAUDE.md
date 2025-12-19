@@ -60,7 +60,7 @@ Sources/LockDetector/
 
 ## Testing
 
-The test suite includes 12 tests across 5 test classes:
+The test suite includes 14 tests across 5 test classes:
 
 | Test Class | Tests | Description |
 |------------|-------|-------------|
@@ -68,7 +68,7 @@ The test suite includes 12 tests across 5 test classes:
 | `ObservationTokenTests` | 4 | Creation, invalidation, multiple observers, deinit |
 | `CurrentStateTests` | 2 | Valid values, unlocked device detection |
 | `MacOSLockDetectorTests` | 2 | GUI session tests (macOS only) |
-| `IOSLockDetectorTests` | 6 | Extension detection, protected file (iOS only) |
+| `IOSLockDetectorTests` | 8 | Extension detection, widget detection, protected file (iOS only) |
 
 Run specific test classes:
 ```bash

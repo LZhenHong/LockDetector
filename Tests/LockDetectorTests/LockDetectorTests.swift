@@ -122,13 +122,26 @@ final class IOSLockDetectorTests: XCTestCase {
     XCTAssertFalse(LockDetector.isAppExtension)
   }
 
+  func testIsWidgetExtension() {
+    // Test runner is not a widget extension
+    XCTAssertFalse(LockDetector.isWidgetExtension)
+  }
+
+  func testWidgetExtensionRequiresAppExtension() {
+    // If not an app extension, cannot be a widget extension
+    if !LockDetector.isAppExtension {
+      XCTAssertFalse(LockDetector.isWidgetExtension)
+    }
+  }
+
   func testProtectedFilePathNotEmpty() {
     XCTAssertFalse(LockDetector.protectedFilePath.isEmpty)
   }
 
   func testProtectedFilePathFormat() {
-    XCTAssertTrue(LockDetector.protectedFilePath.hasSuffix("/protected"))
-    XCTAssertTrue(LockDetector.protectedFilePath.contains("Documents"))
+    // Path should be in Caches directory with hidden file name
+    XCTAssertTrue(LockDetector.protectedFilePath.hasSuffix("/.lock_detector"))
+    XCTAssertTrue(LockDetector.protectedFilePath.contains("Caches"))
   }
 
   func testInitialize() {
