@@ -74,7 +74,7 @@ token.invalidate()
 
 ### iOS App Extensions
 
-For App Extensions on iOS, call `initialize()` early in your extension's lifecycle:
+For App Extensions on iOS (Today Extension, Share Extension, etc.), call `initialize()` early in your extension's lifecycle:
 
 ```swift
 import LockDetector
@@ -86,6 +86,27 @@ LockDetector.initialize()
 @MainActor
 func checkState() {
   let state = LockDetector.currentState
+}
+```
+
+### Widget Extension Limitation
+
+> **⚠️ Widget Extensions are not supported.** `currentState` returns `.unknown` when called from a Widget Extension.
+
+This limitation exists due to fundamental technical constraints:
+
+| Constraint | Description |
+|------------|-------------|
+| **Sandbox isolation** | Widget Extensions run in a separate container from the main app |
+| **No UIApplication** | `UIApplication.shared` is unavailable in Widget Extensions |
+| **Timeline-based** | Widgets update at system-determined intervals, not real-time |
+| **Lock Screen paradox** | Lock Screen widgets only display when device is locked |
+
+Use `isWidgetExtension` to detect if running in a Widget Extension:
+
+```swift
+if LockDetector.isWidgetExtension {
+  // Handle widget context - lock detection not available
 }
 ```
 
@@ -147,6 +168,9 @@ public static func initialize()
 
 // Check if running in an App Extension
 public static var isAppExtension: Bool
+
+// Check if running in a Widget Extension (returns .unknown for currentState)
+public static var isWidgetExtension: Bool
 
 // Path to the protected file
 public static var protectedFilePath: String

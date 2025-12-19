@@ -36,7 +36,8 @@ Sources/LockDetector/
 
 ### iOS/Catalyst Implementation (`LockDetector+iOS.swift`)
 - **Main app**: Uses `UIApplication.shared.isProtectedDataAvailable` for direct lock state detection
-- **App extension**: Uses a file-based approach with `FileProtectionType.complete` - creates a protected file that becomes unreadable when the device is locked
+- **App extension** (non-widget): Uses a file-based approach with `FileProtectionType.complete` - creates a protected file that becomes unreadable when the device is locked
+- **Widget extension**: Returns `.unknown` (not supported due to sandbox isolation and timeline-based execution)
 - **State changes**: Uses `NotificationCenter` to observe `protectedDataDidBecomeAvailableNotification` and `protectedDataWillBecomeUnavailableNotification`
 
 ## Public API
@@ -48,12 +49,14 @@ Sources/LockDetector/
 ### iOS Only
 - `LockDetector.initialize()` → creates the protected file (call early in app lifecycle for extension support)
 - `LockDetector.isAppExtension` → detects if running in an app extension context
+- `LockDetector.isWidgetExtension` → detects if running in a Widget Extension (returns `.unknown` for `currentState`)
 - `LockDetector.protectedFilePath` → path to the protected file used for extension detection
 
 ## Platform Notes
 
 - **macOS**: `currentState` is synchronous (no `@MainActor`); uses Core Graphics session dictionary
 - **iOS/Catalyst**: `currentState` requires `@MainActor`; App Extensions must call `initialize()` first
+- **Widget Extension**: Not supported - `currentState` returns `.unknown` due to sandbox isolation, no `UIApplication.shared` access, timeline-based execution, and Lock Screen paradox (widgets only display when locked)
 
 ## Testing
 
