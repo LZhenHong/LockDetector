@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentViewiOS: View {
   @StateObject private var viewModel = LockStateViewModel()
+  @StateObject private var liveActivityManager = LiveActivityManager()
 
   var body: some View {
     NavigationView {
@@ -13,6 +14,12 @@ struct ContentViewiOS: View {
 
           // Observation Card
           ObservationCard(viewModel: viewModel)
+
+          // Live Activity Card
+          LiveActivityCard(
+            viewModel: viewModel,
+            liveActivityManager: liveActivityManager
+          )
 
           // History Card
           HistoryCard(viewModel: viewModel)
@@ -31,6 +38,12 @@ struct ContentViewiOS: View {
     }
     .onDisappear {
       viewModel.stopObserving()
+    }
+    .onChange(of: viewModel.currentState) { _, newState in
+      // Update Live Activity when state changes (if active)
+      if liveActivityManager.isActivityRunning {
+        liveActivityManager.updateActivity(with: newState)
+      }
     }
   }
 }
@@ -110,6 +123,88 @@ private struct ObservationCard: View {
   }
 }
 
+// MARK: - Live Activity Card
+
+private struct LiveActivityCard: View {
+  @ObservedObject var viewModel: LockStateViewModel
+  @ObservedObject var liveActivityManager: LiveActivityManager
+
+  var body: some View {
+    VStack(spacing: 16) {
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Live Activity")
+            .font(.headline)
+          Text(
+            liveActivityManager.isActivityRunning
+              ? "Observing lock state changes..."
+              : "Display lock state on Lock Screen & Dynamic Island"
+          )
+          .font(.caption)
+          .foregroundColor(.secondary)
+        }
+
+        Spacer()
+
+        if liveActivityManager.isActivityRunning {
+          HStack(spacing: 4) {
+            Circle()
+              .fill(.green)
+              .frame(width: 8, height: 8)
+            Text("Live")
+              .font(.caption)
+              .foregroundColor(.green)
+          }
+        }
+      }
+
+      if !liveActivityManager.areActivitiesEnabled {
+        HStack {
+          Image(systemName: "exclamationmark.triangle.fill")
+            .foregroundColor(.orange)
+          Text("Live Activities are disabled in Settings")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 8)
+      }
+
+      Button(action: {
+        if liveActivityManager.isActivityRunning {
+          // Stop Live Activity and observation
+          liveActivityManager.endActivity()
+          viewModel.stopObserving()
+        } else {
+          // Start observation first, then Live Activity
+          viewModel.startObserving()
+          liveActivityManager.startActivity(with: viewModel.currentState)
+        }
+      }) {
+        HStack {
+          Image(
+            systemName: liveActivityManager.isActivityRunning
+              ? "stop.fill"
+              : "play.fill"
+          )
+          Text(
+            liveActivityManager.isActivityRunning
+              ? "Stop Live Activity"
+              : "Start Live Activity"
+          )
+        }
+        .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.bordered)
+      .tint(liveActivityManager.isActivityRunning ? .red : .green)
+      .disabled(!liveActivityManager.areActivitiesEnabled)
+    }
+    .padding()
+    .background(Color(.systemBackground))
+    .cornerRadius(16)
+    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+  }
+}
+
 // MARK: - History Card
 
 private struct HistoryCard: View {
@@ -162,7 +257,7 @@ private struct InfoSection: View {
       )
       Label(
         "Protected File: \(LockDetector.protectedFilePath.isEmpty ? "N/A" : "Created")",
-        systemImage: "doc.badge.lock"
+        systemImage: "lock.rectangle"
       )
     }
     .font(.caption)

@@ -1,3 +1,4 @@
+import ActivityKit
 import LockDetector
 import SwiftUI
 import WidgetKit
@@ -15,6 +16,13 @@ import WidgetKit
 ///
 /// This widget demonstrates how to properly handle the `.unknown` state
 /// and shows the extension detection APIs.
+///
+/// ## Live Activity
+/// This extension also includes a Live Activity that CAN display real-time lock state
+/// updates because:
+/// 1. **Push updates**: The main app can push state changes via ActivityKit
+/// 2. **App-driven**: State is determined by the main app, not the extension
+/// 3. **Real-time**: Updates appear immediately on Lock Screen and Dynamic Island
 
 // MARK: - Timeline Provider
 
@@ -156,12 +164,158 @@ struct LockWidget: Widget {
   }
 }
 
+// MARK: - Live Activity Attributes
+
+/// Attributes for the Lock State Live Activity.
+///
+/// Unlike widgets, Live Activities receive updates from the main app,
+/// allowing accurate lock state display on the Lock Screen and Dynamic Island.
+public struct LockActivityAttributes: ActivityAttributes {
+  /// Dynamic content state that can be updated
+  public struct ContentState: Codable, Hashable {
+    /// Current lock state as a string (locked, unlocked, unknown)
+    public var lockStateRaw: String
+    /// Timestamp of the last state change
+    public var lastUpdated: Date
+
+    public init(lockState: LockDetector.ScreenState, lastUpdated: Date = Date()) {
+      lockStateRaw = lockState.rawValue
+      self.lastUpdated = lastUpdated
+    }
+
+    /// Convert raw value back to ScreenState
+    public var lockState: LockDetector.ScreenState {
+      LockDetector.ScreenState(rawValue: lockStateRaw) ?? .unknown
+    }
+  }
+
+  /// Static attributes (none needed for this demo)
+  public init() {}
+}
+
+// MARK: - Live Activity Configuration
+
+struct LockActivityConfiguration: Widget {
+  var body: some WidgetConfiguration {
+    ActivityConfiguration(for: LockActivityAttributes.self) { context in
+      // Lock Screen presentation
+      LockActivityLockScreenView(context: context)
+    } dynamicIsland: { context in
+      DynamicIsland {
+        // Expanded presentation
+        DynamicIslandExpandedRegion(.leading) {
+          Image(systemName: context.state.lockState.iconName)
+            .font(.title2)
+            .foregroundColor(context.state.lockState.color)
+        }
+        DynamicIslandExpandedRegion(.center) {
+          Text(context.state.lockState.description)
+            .font(.headline)
+        }
+        DynamicIslandExpandedRegion(.trailing) {
+          Text("Live")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+        }
+        DynamicIslandExpandedRegion(.bottom) {
+          HStack {
+            Text("Updated: \(context.state.lastUpdated, style: .time)")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+        }
+      } compactLeading: {
+        Image(systemName: context.state.lockState.iconName)
+          .foregroundColor(context.state.lockState.color)
+      } compactTrailing: {
+        Text(context.state.lockState.shortDescription)
+          .font(.caption2)
+      } minimal: {
+        Image(systemName: context.state.lockState.iconName)
+          .foregroundColor(context.state.lockState.color)
+      }
+    }
+  }
+}
+
+// MARK: - Live Activity Lock Screen View
+
+struct LockActivityLockScreenView: View {
+  let context: ActivityViewContext<LockActivityAttributes>
+
+  var body: some View {
+    HStack(spacing: 16) {
+      // State icon
+      Image(systemName: context.state.lockState.iconName)
+        .font(.system(size: 36))
+        .foregroundColor(context.state.lockState.color)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Screen \(context.state.lockState.description)")
+          .font(.headline)
+
+        Text("Updated \(context.state.lastUpdated, style: .relative) ago")
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+
+      Spacer()
+
+      // Live indicator
+      HStack(spacing: 4) {
+        Circle()
+          .fill(.green)
+          .frame(width: 6, height: 6)
+        Text("LIVE")
+          .font(.caption2)
+          .fontWeight(.semibold)
+          .foregroundColor(.green)
+      }
+    }
+    .padding()
+    .activityBackgroundTint(context.state.lockState.backgroundColor)
+  }
+}
+
+// MARK: - ScreenState Extensions for Live Activity
+
+extension LockDetector.ScreenState {
+  /// Short emoji representation for compact displays
+  var shortDescription: String {
+    switch self {
+    case .locked: "🔒"
+    case .unlocked: "🔓"
+    case .unknown: "❓"
+    }
+  }
+
+  /// Raw string value for Codable serialization
+  var rawValue: String {
+    switch self {
+    case .locked: "locked"
+    case .unlocked: "unlocked"
+    case .unknown: "unknown"
+    }
+  }
+
+  /// Initialize from raw string value
+  init?(rawValue: String) {
+    switch rawValue {
+    case "locked": self = .locked
+    case "unlocked": self = .unlocked
+    case "unknown": self = .unknown
+    default: return nil
+    }
+  }
+}
+
 // MARK: - Widget Bundle
 
 @main
 struct LockWidgetBundle: WidgetBundle {
   var body: some Widget {
     LockWidget()
+    LockActivityConfiguration()
   }
 }
 
